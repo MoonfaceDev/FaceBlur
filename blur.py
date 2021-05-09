@@ -330,6 +330,7 @@ class Settings(Frame):
 
 def analyze_video(queue, video_file, track_period, resamples=1, tolerance=0.5):
     """
+    Finds faces' locations and encodings in the desired frames, and finds unique faces
     :param queue: Multiprocessing queue
     :param video_file: Path to input video file
     :param track_period: Length of track period
@@ -364,6 +365,7 @@ def analyze_video(queue, video_file, track_period, resamples=1, tolerance=0.5):
 
 def send_data(queue, data):
     """
+    Pushes all elements into the queue
     :param queue: Multiprocessing queue
     :param data: Data array to be pushed into the queue
     """
@@ -383,6 +385,7 @@ def get_data(queue, item_count):
 def make_video(queue, video_file, destination, face_locations, face_encodings, match_encodings, tolerance=0.5,
                track_period=10, blur_method="pixelate", blur_intensity=20, display_output=True):
     """
+    Blurs selected faces and generates video
     :param queue: Multiprocessing queue
     :param video_file: Path to input video file
     :param destination: Path to output location
@@ -394,7 +397,6 @@ def make_video(queue, video_file, destination, face_locations, face_encodings, m
     :param blur_method: "Pixelate", "blur", or "blacken"
     :param blur_intensity: Blurring filter size
     :param display_output: Flag indicating whether output video will be displayed
-    :return:
     """
     trackers = []
     video = video_utils.input_video(video_file)
@@ -433,7 +435,7 @@ def fit_to_window(img, face, target_width=400, target_height=250):
     :param face: face location in the frame
     :param target_width: Width of cropped frame
     :param target_height: Height of cropped frame
-    :return:
+    :return: Frame after being cropped accordingly to faces
     """
     height, width, _ = img.shape
     if width / height > target_width / target_height:
