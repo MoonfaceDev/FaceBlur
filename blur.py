@@ -154,9 +154,7 @@ class App(Frame):
         self.display_face(canvas, blur_toggle_button)
 
     def done(self, widgets_to_disable, face_locations, face_encodings, unique_encodings):
-        for widget in widgets_to_disable:
-            widget.config(state=tk.DISABLED)
-        self.select_destination(face_locations, face_encodings, unique_encodings)
+        self.select_destination(face_locations, face_encodings, unique_encodings, widgets_to_disable)
 
     def close(self):
         self.window.destroy()
@@ -191,7 +189,9 @@ class App(Frame):
             for widget in widgets_to_disable:
                 widget.config(state=tk.NORMAL)
 
-    def select_destination(self, face_locations, face_encodings, unique_encodings):
+    def select_destination(self, face_locations, face_encodings, unique_encodings, widgets_to_disable):
+        for widget in widgets_to_disable:
+            widget.config(state=tk.DISABLED)
         self.destination = asksaveasfilename(title="Select Destination", defaultextension=".avi",
                                              filetypes=[("AVI", "*.avi")])
         if self.destination:
@@ -206,6 +206,9 @@ class App(Frame):
                                     self.settings["display_output"]))
             process.start()
             self.window.after(1000, self.process_queue, "make_video")
+        else:
+            for widget in widgets_to_disable:
+                widget.config(state=tk.NORMAL)
 
 
 class Settings(Frame):
