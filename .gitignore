@@ -2,5 +2,9 @@
 /build/
 /.idea/
 /venv/
-/models/models/
 /blur.spec
+/models/models/dlib_face_recognition_resnet_model_v1.dat
+/models/models/mmod_human_face_detector.dat
+/models/models/deploy.prototxt.txt
+/models/models/res10_300x300_ssd_iter_140000.caffemodel
+/models/models/shape_predictor_5_face_landmarks.dat
