@@ -1,3 +1,5 @@
+# imports
+
 from pickle import dumps, loads
 import tkinter as tk
 from functools import partial
@@ -39,14 +41,14 @@ class App(Frame):
         self.pack(fill=tk.BOTH, expand=True)
         self.initialize_video_selection_ui()
         # Initialize class fields
-        self.index = 0
-        self.faces_display = []
-        self.video_file = None
-        self.destination = None
-        self.queue = Queue()
-        self.photo_img = None
-        self.blur_toggles = None
-        self.settings = {
+        self.index = 0  # index of current showing unique face image
+        self.faces_display = []  # list of PhotoImage objects of frames including unique faces
+        self.video_file = ""  # path to input video
+        self.destination = ""  # path to output video
+        self.queue = Queue()  # multiprocessing queue for sending data back from different processes
+        self.photo_img = None  # PhotoImage object of current frame
+        self.blur_toggles = None  # ndarray where each element indicates whether the matching face will be blurred
+        self.settings = {  # dictionary holding settings value from settings window
             "resamples": 1,
             "tolerance": 0.5,
             "track_period": 10,
@@ -65,11 +67,7 @@ class App(Frame):
         settings_button.place(y=275, x=25, anchor=tk.CENTER)
         # Initialize select video button
         select_video_button = Button(self, text="Select Video")
-        select_video_button.config(command=partial(
-            self.select_video,
-            [logo, select_video_button, settings_button],
-            [select_video_button,
-             settings_button]))
+        select_video_button.config(command=partial(self.select_video, [logo, select_video_button, settings_button], [select_video_button, settings_button]))
         select_video_button.place(y=200, x=200, anchor=tk.CENTER)
 
     def initialize_face_toggle_ui(self, face_locations, face_encodings, unique_encodings):
@@ -96,32 +94,30 @@ class App(Frame):
         close_button.place(y=275, x=25, anchor=tk.CENTER)
         # Initialize done button
         done_button = Button(self, image=self.done_icon)
-        done_button.config(command=partial(self.done,
-                                           [back_button, forward_button, done_button, close_button, blur_toggle_button],
-                                           face_locations, face_encodings, unique_encodings))
+        done_button.config(command=partial(self.done, [back_button, forward_button, done_button, close_button, blur_toggle_button], face_locations, face_encodings, unique_encodings))
         done_button.place(y=275, x=375, anchor=tk.CENTER)
         # Display first face image
         self.display_face(canvas, blur_toggle_button)
 
-    def process_queue(self, process_name, on_complete=None):
-        if process_name == "analyze_video":
-            if self.queue.qsize() == 5:  # Check if process has finished
-                try:
-                    data = get_data(self.queue, 5)
-                    on_complete(data)
-                except Empty:
-                    self.window.after(1000, self.process_queue, process_name, on_complete)
-            else:
-                self.window.after(1000, self.process_queue, process_name, on_complete)
-        elif process_name == "make_video":
+    def process_queue(self, data_size=-1, on_complete=None):
+        if data_size == -1:
             if self.queue.qsize() == 1:  # Check if process has finished
                 try:
                     self.queue.get()
                     self.close()
                 except Empty:
-                    self.window.after(1000, self.process_queue, process_name, on_complete)
+                    self.window.after(1000, self.process_queue, data_size, on_complete)
             else:
-                self.window.after(1000, self.process_queue, process_name, on_complete)
+                self.window.after(1000, self.process_queue, data_size, on_complete)
+        else:
+            if self.queue.qsize() == data_size:  # Check if process has finished
+                try:
+                    data = get_data(self.queue, data_size)
+                    on_complete(data)
+                except Empty:
+                    self.window.after(1000, self.process_queue, data_size, on_complete)
+            else:
+                self.window.after(1000, self.process_queue, data_size, on_complete)
 
     def on_analyze_completed(self, widgets_to_destroy, data):
         # Unpack data from video analysis
@@ -134,10 +130,9 @@ class App(Frame):
         for widget in widgets_to_destroy:
             widget.destroy()
         for i in range(len(unique_faces)):
-            display_img, face = fit_to_window(blur_methods.focused(unique_frames[i].copy(), unique_faces[i],
-                                                                   self.settings["blur_intensity"]), unique_faces[i])
-            cv2.rectangle(img=display_img, pt1=(face[0], face[1]),
-                          pt2=(face[2], face[3]), color=(0, 0, 0), thickness=2)
+            focused_image = blur_methods.focused(unique_frames[i].copy(), unique_faces[i], 20)  # image with blurred background
+            display_img, face = fit_to_window(focused_image, unique_faces[i])  # cropped image, new face coordinates
+            cv2.rectangle(img=display_img, pt1=(face[0], face[1]), pt2=(face[2], face[3]), color=(0, 0, 0), thickness=2)
             self.faces_display.append(display_img)
         self.blur_toggles = np.zeros(len(self.faces_display), dtype=int)
         self.initialize_face_toggle_ui(face_locations, face_encodings, unique_encodings)
@@ -207,11 +202,9 @@ class App(Frame):
         ])
         if self.video_file:  # Pressed 'Open'
             # Starts video analysis process
-            process = Process(target=analyze_video, args=(self.queue, self.video_file, self.settings["track_period"],
-                                                          self.settings["resamples"], self.settings["tolerance"]))
+            process = Process(target=analyze_video, args=(self.queue, self.video_file, self.settings))  # analysis process
             process.start()
-            self.window.after(1000, self.process_queue, "analyze_video",
-                              partial(self.on_analyze_completed, widgets_to_remove))
+            self.window.after(1000, self.process_queue, 5, partial(self.on_analyze_completed, widgets_to_remove))
         else:  # Pressed 'Cancel'
             # Enables UI back
             for widget in widgets_to_disable:
@@ -222,22 +215,17 @@ class App(Frame):
         for widget in widgets_to_disable:
             widget.config(state=tk.DISABLED)
         # Spawns video saving dialog
-        self.destination = asksaveasfilename(title="Select Destination", defaultextension=".avi",
-                                             filetypes=[("AVI", "*.avi")])
+        self.destination = asksaveasfilename(title="Select Destination", defaultextension=".avi", filetypes=[("AVI", "*.avi")])
         if self.destination:  # Pressed 'Save'
             # Creates list of chosen faces' encoding arrays
-            blur_encodings = []
+            blur_encodings = []  # encodings of chosen faces
             for i in range(len(unique_encodings)):
                 if self.blur_toggles[i]:
                     blur_encodings.append(unique_encodings[i])
             # Starts video making process
-            process = Process(target=make_video,
-                              args=(self.queue, self.video_file, self.destination, face_locations, face_encodings,
-                                    blur_encodings, self.settings["tolerance"], self.settings["track_period"],
-                                    self.settings["blur_method"], self.settings["blur_intensity"],
-                                    self.settings["display_output"]))
+            process = Process(target=make_video, args=(self.queue, self.video_file, self.destination, face_locations, face_encodings, blur_encodings, self.settings))  # video making process
             process.start()
-            self.window.after(1000, self.process_queue, "make_video")
+            self.window.after(1000, self.process_queue)
         else:  # Pressed 'Cancel'
             # Enables UI back
             for widget in widgets_to_disable:
@@ -287,8 +275,7 @@ class Settings(Frame):
         track_period_text = tk.StringVar()
         track_period_text.set(self.settings["track_period"])
         track_period_spin = Spinbox(self, from_=1, to=30, textvariable=track_period_text)
-        track_period_spin.config(
-            command=partial(self.save_settings, "track_period", lambda: int(track_period_text.get())))
+        track_period_spin.config(command=partial(self.save_settings, "track_period", lambda: int(track_period_text.get())))
         track_period_spin.place(y=150, x=12.5)
         separator3 = Separator(self, orient='horizontal')
         separator3.place(y=175, x=12.5, width=375, height=1)
@@ -310,8 +297,7 @@ class Settings(Frame):
         blur_intensity_text = tk.StringVar()
         blur_intensity_text.set(self.settings["blur_intensity"])
         blur_intensity_spin = Spinbox(self, from_=1, to=30, textvariable=blur_intensity_text)
-        blur_intensity_spin.config(
-            command=partial(self.save_settings, "blur_intensity", lambda: int(blur_intensity_text.get())))
+        blur_intensity_spin.config(command=partial(self.save_settings, "blur_intensity", lambda: int(blur_intensity_text.get())))
         blur_intensity_spin.place(y=262.5, x=12.5)
         separator5 = Separator(self, orient='horizontal')
         separator5.place(y=287.5, x=12.5, width=375, height=1)
@@ -319,10 +305,8 @@ class Settings(Frame):
         # Initializes display output field
         display_output_flag = tk.IntVar()
         display_output_flag.set(self.settings["display_output"])
-        display_output_checkbox = tk.Checkbutton(self, text='Display output', variable=display_output_flag, onvalue=1,
-                                                 offvalue=0)
-        display_output_checkbox.config(
-            command=partial(self.save_settings, "display_output", lambda: display_output_flag.get()))
+        display_output_checkbox = tk.Checkbutton(self, text='Display output', variable=display_output_flag, onvalue=1, offvalue=0)
+        display_output_checkbox.config(command=partial(self.save_settings, "display_output", lambda: display_output_flag.get()))
         display_output_checkbox.place(y=293.75, x=12.5)
 
     def save_settings(self, name, get_variable, *_):
@@ -330,39 +314,42 @@ class Settings(Frame):
         self.settings[name] = get_variable()
 
 
-def analyze_video(queue, video_file, track_period, resamples=1, tolerance=0.5):
+def analyze_video(queue, video_file, settings):
     """
     Finds faces' locations and encodings in the desired frames, and finds unique faces
     :param queue: Multiprocessing queue
     :param video_file: Path to input video file
-    :param track_period: Length of track period
-    :param resamples: Number of resamples for encoding creation
-    :param tolerance: Tolerance for matching faces
+    :param settings: Settings dictionary
     """
-    video = video_utils.input_video(video_file)
-    frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-    net = models.detection_dnn_model()
-    face_encoder = models.face_encoder()
-    pose_predictor = models.pose_predictor()
-    face_locations = []
-    face_encodings = []
-    unique_frames = []
-    unique_faces = []
-    unique_encodings = []
+    # get video
+    video = cv2.VideoCapture(video_file)  # input VideoCapture object
+    frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))  # number of frames in input video
+    # initialize models
+    net = models.detection_dnn_model()  # detection model
+    face_encoder = models.face_encoder()  # face recognition encoding model
+    pose_predictor = models.pose_predictor()  # pose predictor model for finding face landmarks
+    # get settings
+    track_period = settings["track_period"]  # track period from settings
+    resamples = settings["resamples"]  # number of resamples from settings
+    tolerance = settings["tolerance"]  # face matching tolerance from settings
+    # initialize lists
+    face_locations = []  # list of face locations for each frame
+    face_encodings = []  # list of face encodings for each frame
+    unique_frames = []  # list of frame images including unique faces
+    unique_face_locations = []  # list of unique faces' locations
+    unique_encodings = []  # list of unique faces' encodings
     for i in range(frame_count):
-        ret, img = video.read()
-        if i % track_period == 0:
-            rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        ret, img = video.read()  # ret indicates if frame was read correctly, img is last read frame
+        if i % track_period == 0:  # frame for detection
+            rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # frame in rgb format
             face_locations.append(detection.detect_faces(img, net))
-            face_encodings.append(recognition.encode_faces(rgb, face_locations[-1], pose_predictor, face_encoder,
-                                                           resamples))
-            new_indices, new_encodings = recognition.exclude_faces(face_encodings[-1], np.array(unique_encodings),
-                                                                   tolerance)
-            for k in range(len(new_indices)):
+            face_encodings.append(recognition.encode_faces(rgb, face_locations[-1], pose_predictor, face_encoder, resamples))
+            new_indices, new_encodings = recognition.exclude_faces(face_encodings[-1], np.array(unique_encodings), tolerance)  # indices and encodings of new faces found
+            for k in range(len(new_indices)):  # for each new face found
                 unique_frames.append(rgb)
-                unique_faces.append(face_locations[-1][k])
+                unique_face_locations.append(face_locations[-1][k])
                 unique_encodings.append(new_encodings[k])
-    send_data(queue, [face_locations, face_encodings, unique_frames, unique_faces, unique_encodings])
+    send_data(queue, [face_locations, face_encodings, unique_frames, unique_face_locations, unique_encodings])
 
 
 def send_data(queue, data):
@@ -384,8 +371,7 @@ def get_data(queue, item_count):
     return [loads(queue.get()) for _ in range(item_count)]
 
 
-def make_video(queue, video_file, destination, face_locations, face_encodings, match_encodings, tolerance=0.5,
-               track_period=10, blur_method="pixelate", blur_intensity=20, display_output=True):
+def make_video(queue, video_file, destination, face_locations, face_encodings, match_encodings, settings):
     """
     Blurs selected faces and generates video
     :param queue: Multiprocessing queue
@@ -394,29 +380,34 @@ def make_video(queue, video_file, destination, face_locations, face_encodings, m
     :param face_locations: List of face locations for each frame in which detection was performed
     :param face_encodings: List of face encodings for each frame in which detection was performed
     :param match_encodings: List of chosen faces' encodings
-    :param tolerance: Tolerance for matching faces
-    :param track_period: Length of track period
-    :param blur_method: "Pixelate", "blur", or "blacken"
-    :param blur_intensity: Blurring filter size
-    :param display_output: Flag indicating whether output video will be displayed
+    :param settings: Settings dictionary
     """
-    trackers = []
-    video = video_utils.input_video(video_file)
-    frame_rate = video.get(cv2.CAP_PROP_FPS)
-    width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-    out = video_utils.initialize_writer(destination, (width, height), frame_rate)
+    trackers = []  # list of tracker objects, one for each matched face
+    # get video
+    video = cv2.VideoCapture(video_file)  # input VideoCapture object
+    frame_rate = video.get(cv2.CAP_PROP_FPS)  # frames per second in input video
+    width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))  # width of input video frame
+    height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))  # height of input video frame
+    frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))  # number of frames in input video
+    # get settings
+    track_period = settings["track_period"]  # track period from settings
+    tolerance = settings["tolerance"]  # face matching tolerance from settings
+    blur_method = settings["blur_method"]  # type of blurring from settings
+    blur_intensity = settings["blur_intensity"]  # blurring filter size from settings
+    display_output = settings["display_output"]  # flag indicating whether to display output video from settings
+    # initialize writer
+    out = video_utils.initialize_writer(destination, (width, height), frame_rate)  # VideoWriter object
     for i in range(frame_count):
-        ret, img = video.read()
-        if i % track_period == 0:
-            matched_indices, matched_encodings = recognition.match_faces(
-                np.array(face_encodings[i // track_period]), np.array(match_encodings), tolerance)
-            matched_locations = [face_locations[i // track_period][k] for k in matched_indices]
-            trackers = tracking.start_trackers(img, matched_locations)
-        else:
-            matched_locations = tracking.update_locations(trackers, img)
-        blurred = None
+        ret, img = video.read()  # ret indicates if frame was read correctly, img is last read frame
+        if i % track_period == 0:  # frame for detection
+            current_frame_encodings = np.array(face_encodings[i // track_period])  # array of encodings for faces in current frame
+            matched_indices, matched_encodings = recognition.match_faces(current_frame_encodings, np.array(match_encodings), tolerance)  # indices of matched faces from current frame and their encodings
+            matched_locations = [face_locations[i // track_period][k] for k in matched_indices]  # locations of matched faces from current frame
+            trackers = tracking.start_trackers(img, matched_locations)  # list of tracker objects, one for each matched face
+        else:  # frame for tracking
+            matched_locations = tracking.update_locations(trackers, img)  # updated locations of matched faces from current frame
+        # generate blurred image
+        blurred = None  # object holding image with blurred faces
         if blur_method == "pixelate":
             blurred = blur_methods.pixelated(img, matched_locations, blur_intensity)
         elif blur_method == "blur":
@@ -437,39 +428,35 @@ def fit_to_window(img, face, target_width=400, target_height=250):
     :param face: face location in the frame
     :param target_width: Width of cropped frame
     :param target_height: Height of cropped frame
-    :return: Frame after being cropped accordingly to faces
+    :return: Frame after being cropped accordingly to face, new face location
     """
-    height, width, _ = img.shape
-    if width / height > target_width / target_height:
-        ratio = target_height / height
-        height = int(ratio * height)
-        width = int(ratio * width)
-        face = (face * ratio).astype(int)
-        img = cv2.resize(img, (width, height))
-        x_middle = int((face[0] + face[2]) / 2)
-        if x_middle < target_width / 2:
-            return img[:, 0:target_width], \
-                   face - np.array([0, 0, 0, 0])
-        if x_middle > width - target_width / 2:
-            return img[:, width - target_width:width], \
-                   face - np.array([width - target_width, 0, width - target_width, 0])
-        return img[:, x_middle - int(target_width / 2):x_middle + int(target_width / 2)], \
-               face - np.array([x_middle - int(target_width / 2), 0, x_middle - int(target_width / 2), 0])
-    else:
-        ratio = target_width / width
-        height = int(height * ratio)
-        width = int(width * ratio)
-        face = (face * ratio).astype(int)
-        img = cv2.resize(img, (width, height))
-        y_middle = int((face[1] + face[3]) / 2)
-        if y_middle < target_height / 2:
-            return img[0:target_height, :], \
-                   face - np.array([0, 0, 0, 0])
-        if y_middle > height - target_height / 2:
-            return img[height - target_height:height, :], \
-                   face - np.array([0, height - target_height, 0, height - target_height])
-        return img[y_middle - int(target_height / 2):y_middle + int(target_height / 2), :], \
-               face - np.array([0, y_middle - int(target_height / 2), 0, y_middle - int(target_height / 2)])
+    height, width, _ = img.shape  # input image dimensions
+    if width / height > target_width / target_height:  # crop horizontally
+        ratio = target_height / height  # image sizes ratio
+        height = int(ratio * height)  # output image height
+        width = int(ratio * width)  # output image width
+        face = (face * ratio).astype(int)  # face coordinates in new image
+        img = cv2.resize(img, (width, height))  # transformed image
+        x_middle = int((face[0] + face[2]) / 2)  # face center x coordinate
+        if x_middle < target_width / 2:  # returns the left part of the image
+            return img[:, 0:target_width], face - np.array([0, 0, 0, 0])
+        if x_middle > width - target_width / 2:  # returns the right part of the image
+            return img[:, width - target_width:width], face - np.array([width - target_width, 0, width - target_width, 0])
+        # returns the part of the image around the face
+        return img[:, x_middle - int(target_width / 2):x_middle + int(target_width / 2)], face - np.array([x_middle - int(target_width / 2), 0, x_middle - int(target_width / 2), 0])
+    else:  # crop vertically
+        ratio = target_width / width  # image sizes ratio
+        height = int(height * ratio)  # output image height
+        width = int(width * ratio)  # output image width
+        face = (face * ratio).astype(int)  # face coordinates in new image
+        img = cv2.resize(img, (width, height))  # transformed image
+        y_middle = int((face[1] + face[3]) / 2)  # face center y coordinate
+        if y_middle < target_height / 2:   # returns the upper part of the image
+            return img[0:target_height, :], face - np.array([0, 0, 0, 0])
+        if y_middle > height - target_height / 2:  # returns the lower part of the image
+            return img[height - target_height:height, :], face - np.array([0, height - target_height, 0, height - target_height])
+        # returns the part of the image around the face
+        return img[y_middle - int(target_height / 2):y_middle + int(target_height / 2), :], face - np.array([0, y_middle - int(target_height / 2), 0, y_middle - int(target_height / 2)])
 
 
 def main():
