@@ -6,6 +6,7 @@ from dlib import rectangle
 
 def get_face_landmarks(img, face_locations, pose_predictor):
     """
+    Locates face landmarks for each face in the image
     :param img: Frame in RGB color format
     :param face_locations: The bounding boxes of each face
     :param pose_predictor: Initialized pose predictor model
@@ -17,6 +18,7 @@ def get_face_landmarks(img, face_locations, pose_predictor):
 
 def encode_faces(img, face_locations, pose_predictor, face_encoder, num_jitters=1):
     """
+    Computes face encodings for each face in the image
     :param img: Frame in RGB color format
     :param face_locations: The bounding boxes of each face
     :param pose_predictor: Initialized pose predictor model
@@ -30,6 +32,7 @@ def encode_faces(img, face_locations, pose_predictor, face_encoder, num_jitters=
 
 def face_distance(face_encodings, face_encoding_to_compare):
     """
+    Computes euclidean distance between the given face and each of the faces in the given array
     :param face_encodings: List of face encodings to compare
     :param face_encoding_to_compare: A face encoding to compare against
     :return: Face distances array
@@ -42,6 +45,7 @@ def face_distance(face_encodings, face_encoding_to_compare):
 
 def compare_faces(face_encodings, face_encoding_to_compare, tolerance=0.5):
     """
+    Finds matches between the given face and each of the faces in the given array
     :param face_encodings: List of face encodings to compare
     :param face_encoding_to_compare: A face encoding to compare against
     :param tolerance: How much distance between faces to consider it a match
@@ -52,6 +56,7 @@ def compare_faces(face_encodings, face_encoding_to_compare, tolerance=0.5):
 
 def match_faces(face_encodings, match_encodings, tolerance=0.5):
     """
+    Finds which of the given faces match any of the faces in the given faces to match
     :param face_encodings: List of face encodings to match
     :param match_encodings: List of wanted face encodings
     :param tolerance: How much distance between faces to consider it a match
@@ -71,6 +76,7 @@ def match_faces(face_encodings, match_encodings, tolerance=0.5):
 
 def exclude_faces(face_encodings, match_encodings, tolerance=0.5):
     """
+    Finds which of the given faces do not match any of the faces in the given faces to match
     :param face_encodings: List of face encodings to match
     :param match_encodings: List of unwanted face encodings
     :param tolerance: How much distance between faces to consider it a match

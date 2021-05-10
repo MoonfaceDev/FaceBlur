@@ -5,6 +5,7 @@ import cv2
 
 def initialize_writer(path, size, frame_rate):
     """
+    Initializes VideoWriter object
     :param path: Path to output video
     :param size: Video resolution
     :param frame_rate: The number of frames displayed per second
@@ -16,6 +17,7 @@ def initialize_writer(path, size, frame_rate):
 
 def display_video(path):
     """
+    Displays the video saved in given path
     :param path: Path to video file
     """
     # get video

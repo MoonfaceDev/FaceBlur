@@ -6,6 +6,7 @@ import cv2
 
 def detect_faces(img, net):
     """
+    Finds locations of faces in the image
     :param img: Frame in BGR color format
     :param net: Initialized dnn model
     :return: Face locations array

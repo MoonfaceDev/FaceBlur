@@ -5,6 +5,7 @@ from dlib import correlation_tracker, rectangle
 
 def start_trackers(img, faces):
     """
+    Initializes a tracker for each face in the image
     :param img: Frame in RGB color format
     :param faces: Locations list of faces to blur
     :return: Trackers list
@@ -22,6 +23,7 @@ def start_trackers(img, faces):
 
 def update_locations(trackers, img):
     """
+    Updates the trackers with current frame
     :param trackers: Trackers list
     :param img: Frame in RGB color format
     :return: Updated locations list of faces to blur

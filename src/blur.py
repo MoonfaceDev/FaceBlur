@@ -364,6 +364,7 @@ def send_data(queue, data):
 
 def get_data(queue, item_count):
     """
+    Pulls data from queue
     :param queue: Multiprocessing queue
     :param item_count: Number of elements to be pulled
     :return: Array of pulled elements
@@ -424,6 +425,7 @@ def make_video(queue, video_file, destination, face_locations, face_encodings, m
 
 def fit_to_window(img, face, target_width=400, target_height=250):
     """
+    Fits frame dimensions to target dimensions
     :param img: Original frame
     :param face: face location in the frame
     :param target_width: Width of cropped frame

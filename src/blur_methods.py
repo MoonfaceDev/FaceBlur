@@ -6,6 +6,7 @@ from cv2 import blur
 
 def blackened(img, faces):
     """
+    Blackens faces in the image
     :param img: Original frame
     :param faces: Face locations list
     :return: Frame with blackened faces
@@ -18,6 +19,7 @@ def blackened(img, faces):
 
 def pixelated(img, faces, d=20):
     """
+    Pixelates faces in the image
     :param img: Original frame
     :param faces: Face locations list
     :param d: "Pixel" square's size
@@ -33,6 +35,7 @@ def pixelated(img, faces, d=20):
 
 def blurred(img, faces, d=20):
     """
+    Blurs faces in the image
     :param img: Original frame
     :param faces: Face locations list
     :param d: Filter's size
@@ -48,10 +51,11 @@ def blurred(img, faces, d=20):
 
 def focused(img, face, d=20):
     """
+    Blurs image background
     :param img: Original frame
     :param face: Face location
     :param d: Filter's size
-    :return: Frame with blurred faces
+    :return: Frame with blurred background
     """
     h, w, _ = img.shape  # image dimensions
     left, top, right, bottom = max(face[0], 0), max(face[1], 0), min(face[2], w), min(face[3], h)  # face box coordinates
