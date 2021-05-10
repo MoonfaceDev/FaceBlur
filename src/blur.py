@@ -22,14 +22,14 @@ class App(Frame):
     def __init__(self, window):
         Frame.__init__(self, window, name="frame")
         # Import icons
-        self.visibility_icon = ImageTk.PhotoImage(Image.open("images/visibility.png").resize((25, 25)))
-        self.visibility_off_icon = ImageTk.PhotoImage(Image.open("images/visibility_off.png").resize((25, 25)))
-        self.back_icon = ImageTk.PhotoImage(Image.open("images/arrow_back.png").resize((25, 25)))
-        self.forward_icon = ImageTk.PhotoImage(Image.open("images/arrow_forward.png").resize((25, 25)))
-        self.done_icon = ImageTk.PhotoImage(Image.open("images/done.png").resize((25, 25)))
-        self.close_icon = ImageTk.PhotoImage(Image.open("images/close.png").resize((25, 25)))
-        self.settings_icon = ImageTk.PhotoImage(Image.open("images/settings.png").resize((25, 25)))
-        self.logo_image = ImageTk.PhotoImage(Image.open("images/logo.png").resize((100, 100)))
+        self.visibility_icon = ImageTk.PhotoImage(Image.open("../images/visibility.png").resize((25, 25)))
+        self.visibility_off_icon = ImageTk.PhotoImage(Image.open("../images/visibility_off.png").resize((25, 25)))
+        self.back_icon = ImageTk.PhotoImage(Image.open("../images/arrow_back.png").resize((25, 25)))
+        self.forward_icon = ImageTk.PhotoImage(Image.open("../images/arrow_forward.png").resize((25, 25)))
+        self.done_icon = ImageTk.PhotoImage(Image.open("../images/done.png").resize((25, 25)))
+        self.close_icon = ImageTk.PhotoImage(Image.open("../images/close.png").resize((25, 25)))
+        self.settings_icon = ImageTk.PhotoImage(Image.open("../images/settings.png").resize((25, 25)))
+        self.logo_image = ImageTk.PhotoImage(Image.open("../images/logo.png").resize((100, 100)))
         # Initialize window
         self.window = window
         self.window.geometry("400x300+100+100")
@@ -65,9 +65,11 @@ class App(Frame):
         settings_button.place(y=275, x=25, anchor=tk.CENTER)
         # Initialize select video button
         select_video_button = Button(self, text="Select Video")
-        select_video_button.config(command=partial(self.select_video,
-                                                   [logo, select_video_button, settings_button],
-                                                   [select_video_button, settings_button]))
+        select_video_button.config(command=partial(
+            self.select_video,
+            [logo, select_video_button, settings_button],
+            [select_video_button,
+             settings_button]))
         select_video_button.place(y=200, x=200, anchor=tk.CENTER)
 
     def initialize_face_toggle_ui(self, face_locations, face_encodings, unique_encodings):
@@ -246,7 +248,7 @@ class Settings(Frame):
     def __init__(self, window, settings):
         Frame.__init__(self, window, name="settings")
         # Initialize window
-        self.logo_image = ImageTk.PhotoImage(Image.open("images/logo.png").resize((100, 100)))
+        self.logo_image = ImageTk.PhotoImage(Image.open("../images/logo.png").resize((100, 100)))
         self.window = window
         self.window.geometry("400x331+200+200")
         self.window.title("Settings")

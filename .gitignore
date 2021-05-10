@@ -8,3 +8,7 @@
 /models/models/deploy.prototxt.txt
 /models/models/res10_300x300_ssd_iter_140000.caffemodel
 /models/models/shape_predictor_5_face_landmarks.dat
+/docs/source/conf.py
+/docs/source/index.rst
+/docs/source/make.bat
+/docs/source/Makefile
